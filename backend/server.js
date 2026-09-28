@@ -10,6 +10,8 @@ const Event = require("./models/Event");
 const User = require("./models/User");
 
 const app = express();
+const jwt = require("jsonwebtoken");
+const authMiddlewaren = require("./middleware/authMiddleware");
 
 app.use(cors());
 app.use(express.json());
@@ -62,7 +64,7 @@ app.get("/api/events", async (req, res) => {
 // ADD EVENT
 // =======================
 
-app.post("/api/events", async (req, res) => {
+app.post("/api/events", authMiddlewaren, async (req, res) => {
     try {
         const newEvent = await Event.create(req.body);
 
@@ -84,7 +86,7 @@ app.post("/api/events", async (req, res) => {
 // UPDATE EVENT
 // =======================
 
-app.put("/api/events/:id", async (req, res) => {
+app.put("/api/events/:id", authMiddlewaren,async (req, res) => {
     try {
         const updatedEvent = await Event.findByIdAndUpdate(
             req.params.id,
@@ -116,7 +118,7 @@ app.put("/api/events/:id", async (req, res) => {
 // DELETE EVENT
 // =======================
 
-app.delete("/api/events/:id", async (req, res) => {
+app.delete("/api/events/:id",authMiddlewaren, async (req, res) => {
     try {
         const deletedEvent = await Event.findByIdAndDelete(
             req.params.id
@@ -220,8 +222,23 @@ app.post("/api/login", async (req, res) => {
             });
         }
 
+        const token = jwt.sign(
+            {
+                userId: user._id,
+                email: user._email
+            },
+            process.env.JWT_SECRET,
+
+            {
+                expiresIn: "1h"
+
+            }
+
+        )
+
         res.json({
             message: "Login successful",
+            token: token,
             user: user
         });
 
@@ -233,6 +250,14 @@ app.post("/api/login", async (req, res) => {
         });
     }
 });
+
+app.get("/api/profile",authMiddlewaren, (req, res)=>{
+
+res.json({
+message:"you are  aut",
+user : req.user
+});
+})
 
 
 // =======================
