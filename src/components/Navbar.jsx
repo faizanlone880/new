@@ -16,11 +16,17 @@
 // export default Navbar;
 
 // 
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 
 function Navbar() {
+  const navigate = useNavigate();
+
   function getNavLinkClass({ isActive }) {
     return isActive ? "nav-link active-link" : "nav-link";
+  }
+  function handleLogout() {
+    localStorage.removeItem("token");
+    navigate("/Login");
   }
 
   return (
@@ -41,6 +47,19 @@ function Navbar() {
         <NavLink className={getNavLinkClass} to="/about">
           About
         </NavLink>
+<NavLink className="nav-link register-link" to="/register">
+Register
+</NavLink>
+
+
+
+<NavLink
+className={getNavLinkClass} to ="/Login">
+Login
+
+</NavLink>
+<button type="button" onClick={handleLogout}>Logout</button>
+
       </div>
     </nav>
   );
