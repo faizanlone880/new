@@ -1,119 +1,244 @@
+
 require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
-const app = express();
 const dns = require("dns");
+
 const Event = require("./models/Event");
-const User = require("./models/user");
-const bcrypt = require("bcryptjs");
+const User = require("./models/User");
+
+const app = express();
 
 app.use(cors());
 app.use(express.json());
-dns.setServers(['8.8.8.8']);
 
-mongoose.connect(process.env.MONGODB_URI)
-.then(()=>{
-    console.log("MongoDB Connected Successfully!");
-}).catch((error)=>{
-    console.log("MongoDB Connection Error: ", error);
-});
+dns.setServers(["8.8.8.8"]);
 
+// =======================
+// MongoDB Connection
+// =======================
 
-app.get("/", (req, res)=>{
-    res.send("Backend is working");
-})
-
-app.get("/api/events", async (req, res)=>{
-    const events = await Event.find();
-    res.json(events);
-})
-
-app.delete("/api/events/:id", async (req, res)=>{
-    const deletedEvent = await Event.findByIdAndDelete(
-        req.params.id
-    )
-
-    if(!deletedEvent){
-        return res.status(404).json({
-            message: "Event Not Found!"
-        })
-    }
-
-    res.json({
-        message: "Event Deleted Successfully"
+mongoose
+    .connect(process.env.MONGODB_URI)
+    .then(() => {
+        console.log("MongoDB Connected Successfully!");
     })
-})
-
-app.post("/api/events", async (req, res)=>{
-    const newEvent = await Event.create(req.body);
-    res.json({
-        message: "Event Added Successfully!",
-        event: newEvent
+    .catch((error) => {
+        console.log("MongoDB Connection Error:", error);
     });
+
+
+// =======================
+// Home Route
+// =======================
+
+app.get("/", (req, res) => {
+    res.send("Backend is working");
 });
 
-app.put("/api/events/:id", async (req, res)=>{
-    const updatedEvent = await Event.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        { new: true }
-    )
 
-    if(!updatedEvent){
-        return res.status(404).json({
-            message: "Event Not Found!"
+// =======================
+// GET ALL EVENTS
+// =======================
+
+app.get("/api/events", async (req, res) => {
+    try {
+        const events = await Event.find();
+
+        res.json(events);
+    } catch (error) {
+        console.log(error);
+
+        res.status(500).json({
+            message: "Error fetching events"
         });
     }
-
-    res.json({
-        message:"Event Updated Successfully!",
-        event: updatedEvent
-    });
 });
 
-app.post("/api/register", async (req, res)=>{
-    const { name, email, password } = req.body;
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+// =======================
+// ADD EVENT
+// =======================
 
-    const newUser = new User({ 
-        name, email, password: hashedPassword
-    });
-    await newUser.save();
-    res.json({
-        message: "User Registered Successfully!",
-        user: newUser
-    });
+app.post("/api/events", async (req, res) => {
+    try {
+        const newEvent = await Event.create(req.body);
+
+        res.json({
+            message: "Event Added Successfully!",
+            event: newEvent
+        });
+    } catch (error) {
+        console.log(error);
+
+        res.status(500).json({
+            message: "Error adding event"
+        });
+    }
 });
 
-app.post("/api/login", async (req, res)=>{
 
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+// =======================
+// UPDATE EVENT
+// =======================
 
-    if(!user){
-        return res.status(401).json({
-            message: "Invalid Email or Password!"
-        });
-    }
-    const PasswordMatch = await bcrypt.compare(password, user.password);
-    if(!PasswordMatch){
-        return res.status(401).json({
-            message: "Invalid Email or Password!"
-        });
-    }
-    res.json({
-        message: "Login Successful!",
-        user: {
-            id: user._id,
-            name: user.name,
-            email: user.email
+app.put("/api/events/:id", async (req, res) => {
+    try {
+        const updatedEvent = await Event.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true }
+        );
+
+        if (!updatedEvent) {
+            return res.status(404).json({
+                message: "Event Not Found!"
+            });
         }
-    });
+
+        res.json({
+            message: "Event Updated Successfully!",
+            event: updatedEvent
+        });
+    } catch (error) {
+        console.log(error);
+
+        res.status(500).json({
+            message: "Error updating event"
+        });
+    }
 });
 
-app.listen(5000, ()=>{
+
+// =======================
+// DELETE EVENT
+// =======================
+
+app.delete("/api/events/:id", async (req, res) => {
+    try {
+        const deletedEvent = await Event.findByIdAndDelete(
+            req.params.id
+        );
+
+        if (!deletedEvent) {
+            return res.status(404).json({
+                message: "Event Not Found!"
+            });
+        }
+
+        res.json({
+            message: "Event Deleted Successfully"
+        });
+    } catch (error) {
+        console.log(error);
+
+        res.status(500).json({
+            message: "Error deleting event"
+        });
+    }
+});
+
+
+// =======================
+// REGISTER USER
+// =======================
+
+app.post("/api/register", async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
+
+        // Check if all fields are provided
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                message: "All fields are required"
+            });
+        }
+
+        // Check if email already exists
+        const existingUser = await User.findOne({ email });
+
+        if (existingUser) {
+            return res.status(400).json({
+                message: "Email already registered"
+            });
+        }
+
+        // Create new user
+        const newUser = new User({
+            name,
+            email,
+            password
+        });
+
+        await newUser.save();
+
+        res.status(201).json({
+            message: "User Registered Successfully!",
+            user: newUser
+        });
+
+    } catch (error) {
+        console.log("Register Error:", error);
+
+        res.status(500).json({
+            message: "Server error"
+        });
+    }
+});
+
+
+// =======================
+// LOGIN USER
+// =======================
+
+app.post("/api/login", async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        // Check fields
+        if (!email || !password) {
+            return res.status(400).json({
+                message: "Email and password are required"
+            });
+        }
+
+        // Find user by email
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(401).json({
+                message: "Invalid email or password"
+            });
+        }
+
+        // Check password
+        if (user.password !== password) {
+            return res.status(401).json({
+                message: "Invalid email or password"
+            });
+        }
+
+        res.json({
+            message: "Login successful",
+            user: user
+        });
+
+    } catch (error) {
+        console.log("Login Error:", error);
+
+        res.status(500).json({
+            message: "Server error"
+        });
+    }
+});
+
+
+// =======================
+// START SERVER
+// =======================
+
+app.listen(5000, () => {
     console.log("Server is running on port 5000");
 });
